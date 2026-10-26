@@ -1,4 +1,4 @@
-import{j as e,L as n,a as o}from"./index-BD2y64kn.js";const t=`/* ===== 36 贡献者卡片去填充色 ===== */
+import{j as e,L as n,a as o}from"./index-BAPhHLqT.js";const t=`/* ===== 36 贡献者卡片去填充色 ===== */
 .contrib-stats .cstat.cstat-main{
   background: transparent !important;
   background-image: none !important;
