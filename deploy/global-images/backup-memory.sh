@@ -28,9 +28,55 @@ STAMP="$(date +%Y%m%d-%H%M%S)"
 
 to_win() { cygpath -w "$1" 2>/dev/null || echo "$1"; }
 
+# ── 参数解析：--restore <dir> / --keep <N> / --keep=N / <dir> ──
+MODE="backup"
+POSITIONAL=()
+KEEP=7
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --restore) MODE="restore"; shift ;;
+    --keep=*)  KEEP="${1#--keep=}"; shift ;;
+    --keep)    shift; KEEP="${1:-7}"; [[ $# -gt 0 ]] && shift ;;
+    -h|--help) MODE="help"; shift ;;
+    *)         POSITIONAL+=("$1"); shift ;;
+  esac
+done
+[[ "$KEEP" =~ ^[0-9]+$ ]] || KEEP=7
+
+BACKUP_ROOT="$SCRIPT_DIR/backups"
+
+prune_backups() {
+  [[ -d "$BACKUP_ROOT" ]] || return 0
+  local keep="$1" dir base
+  # 只清理符合 <时间戳> 命名的目录，不动其它文件
+  mapfile -t dirs < <(find "$BACKUP_ROOT" -mindepth 1 -maxdepth 1 -type d -regextype posix-extended       -regex '.*/[0-9]{8}-[0-9]{6}' -printf '%T@ %p
+' 2>/dev/null | sort -rn | cut -d' ' -f2-)
+  local total="${#dirs[@]}"
+  (( total <= keep )) && return 0
+  for (( i = keep; i < total; i++ )); do
+    dir="${dirs[$i]}"
+    base="$(basename "$dir")"
+    rm -rf "$dir" && echo "  [prune] 删除旧备份 $base"
+  done
+}
+
 # ───────────────────────── 恢复 ─────────────────────────
-if [[ "${1:-}" == "--restore" ]]; then
-  SRC="${2:?用法: ./backup-memory.sh --restore <备份目录>}"
+if [[ "$MODE" == "help" ]]; then
+  cat <<EOF
+用法：
+  ./backup-memory.sh [--dir <目录>] [--keep <N>]
+  ./backup-memory.sh --restore <备份目录>
+
+选项：
+  --dir <目录>   指定备份输出目录（默认 ./backups/<时间戳>）
+  --keep <N>     保留最近 N 份备份并清理旧的（默认 7）
+  --restore      从备份恢复（覆盖 volume 全部数据）
+EOF
+  exit 0
+fi
+
+if [[ "$MODE" == "restore" ]]; then
+  SRC="${POSITIONAL[0]:?用法: ./backup-memory.sh --restore <备份目录>}"
   [[ -d "$SRC" ]] || { echo "[error] 备份目录不存在: $SRC" >&2; exit 1; }
   SRC_WIN="$(to_win "$SRC")"
   echo "▶ 从备份恢复：$SRC"
@@ -44,7 +90,7 @@ if [[ "${1:-}" == "--restore" ]]; then
 fi
 
 # ───────────────────────── 备份 ─────────────────────────
-DEST="${1:-$SCRIPT_DIR/backups/$STAMP}"
+DEST="${POSITIONAL[0]:-$SCRIPT_DIR/backups/$STAMP}"
 mkdir -p "$DEST"
 DEST_WIN="$(to_win "$DEST")"
 
@@ -108,3 +154,7 @@ EOF
 echo
 echo "[ok] 备份完成 -> $DEST"
 ls -la "$DEST" | tail -8
+
+# 5) 清理旧备份（保留最近 KEEP 份）
+prune_backups "$KEEP"
+echo "  保留策略：最近 $KEEP 份（目录 $BACKUP_ROOT）"
