@@ -145,3 +145,6 @@ z_config/
 client-configs/
 # github-skills/ 是 import-github-skills.mjs 的抓取目录（125MB 第三方仓库克隆，含嵌套 .git）
 github-skills/
+
+# 备份产物（含 .admin-key 与数据库快照，不得入库）
+deploy/global-images/backups/
