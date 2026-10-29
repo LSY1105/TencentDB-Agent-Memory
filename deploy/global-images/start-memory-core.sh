@@ -274,6 +274,7 @@ CORE_CONFIG_WIN=$(cygpath -w "$CORE_CONFIG_FILE" 2>/dev/null || echo "$CORE_CONF
 
 info "启动 memory-core (image=$MEMORY_CORE_IMAGE, port=$MEMORY_CORE_PORT)"
 $DOCKER run -d --name "$CONTAINER" \
+  --restart unless-stopped \
   --network "$NETWORK" \
   --network-alias memory-core \
   -p "${MEMORY_CORE_PORT}:8420" \
